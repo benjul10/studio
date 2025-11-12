@@ -1,0 +1,22 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16
+    container_name: studio_db
+    environment:
+      POSTGRES_USER: studio
+      POSTGRES_PASSWORD: studio_pwd
+      POSTGRES_DB: studio
+    ports: ["5432:5432"]
+    volumes:
+      - ./db-data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+  pgadmin:
+    image: dpage/pgadmin4:8
+    container_name: studio_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@local
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports: ["5050:80"]
+    depends_on: [db]

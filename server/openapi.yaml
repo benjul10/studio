@@ -1,0 +1,690 @@
+openapi: 3.1.0
+info:
+  title: Studio Photo – API
+  version: 1.0.0
+  description: >
+    API de gestion du planning (prépa/shoot/dépose), prestataires, lieux,
+    articles, décors, validations et historiques pour le Studio Photo.
+servers:
+  - url: http://localhost:3001
+tags:
+  - name: Prestataires
+  - name: Lieux
+  - name: Articles
+  - name: Décors
+  - name: Sessions
+  - name: Validations
+  - name: Historiques
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IdParam:
+      name: id
+      in: path
+      required: true
+      schema: { $ref: '#/components/schemas/UUID' }
+    FromQuery:
+      name: from
+      in: query
+      required: false
+      schema: { type: string, format: date }
+    ToQuery:
+      name: to
+      in: query
+      required: false
+      schema: { type: string, format: date }
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      example: "7d3f1a08-7e6f-4fb7-8c5f-650f8d3a0d0e"
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+      required: [message]
+    PrestataireRole:
+      type: string
+      enum: [photographe, assistant_photographe, decorateur, assistant_decorateur, chauffeur_assistant]
+    SessionType:
+      type: string
+      enum: [prepa, shoot_studio, shoot_decor, depose]
+    ArticleStatus:
+      type: string
+      enum: [ok, abime, perdu]
+    ValidationKind:
+      type: string
+      enum: [article_studio_photo, decor_photo, decor_install, decor_uninstall]
+    Prestataire:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        first_name: { type: string }
+        last_name: { type: string }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true, format: email }
+        company: { type: string, nullable: true }
+        role: { $ref: '#/components/schemas/PrestataireRole' }
+        active: { type: boolean, default: true }
+      required: [id, first_name, last_name, role, active]
+    PrestataireCreate:
+      type: object
+      properties:
+        first_name: { type: string }
+        last_name: { type: string }
+        phone: { type: string, nullable: true }
+        email: { type: string, nullable: true, format: email }
+        company: { type: string, nullable: true }
+        role: { $ref: '#/components/schemas/PrestataireRole' }
+        active: { type: boolean, default: true }
+      required: [first_name, last_name, role]
+    LieuType:
+      type: string
+      enum: [studio, maison]
+    Lieu:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        type: { $ref: '#/components/schemas/LieuType' }
+        address: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+      required: [id, name, type]
+    LieuCreate:
+      type: object
+      properties:
+        name: { type: string }
+        type: { $ref: '#/components/schemas/LieuType' }
+        address: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+      required: [name, type]
+    Article:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        sku: { type: string, nullable: true }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        status_reason: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+      required: [id, name, status]
+    ArticleCreate:
+      type: object
+      properties:
+        sku: { type: string, nullable: true }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+      required: [name]
+    ArticleStatusUpdate:
+      type: object
+      properties:
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        reason: { type: string, nullable: true }
+      required: [status]
+    Decor:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+      required: [id, name]
+    DecorCreate:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+      required: [name]
+    Session:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        type: { $ref: '#/components/schemas/SessionType' }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        lieu_id: { $ref: '#/components/schemas/UUID' }
+        title: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+      required: [id, type, start_at, end_at, lieu_id]
+    SessionCreate:
+      type: object
+      properties:
+        type: { $ref: '#/components/schemas/SessionType' }
+        start_at: { type: string, format: date-time }
+        end_at: { type: string, format: date-time }
+        lieu_id: { $ref: '#/components/schemas/UUID' }
+        title: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+      required: [type, start_at, end_at, lieu_id]
+    SessionAttachIds:
+      type: object
+      properties:
+        article_ids:
+          type: array
+          items: { $ref: '#/components/schemas/UUID' }
+        decor_ids:
+          type: array
+          items: { $ref: '#/components/schemas/UUID' }
+      additionalProperties: false
+    Validation:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/UUID' }
+        kind: { $ref: '#/components/schemas/ValidationKind' }
+        session_id: { $ref: '#/components/schemas/UUID' }
+        target_article_id: { $ref: '#/components/schemas/UUID', nullable: true }
+        target_decor_id: { $ref: '#/components/schemas/UUID', nullable: true }
+        validated_by_prestataire_id: { $ref: '#/components/schemas/UUID' }
+        validated_at: { type: string, format: date-time }
+      required: [id, kind, session_id, validated_by_prestataire_id, validated_at]
+    ValidationCreateArticlePhoto:
+      type: object
+      properties:
+        session_id: { $ref: '#/components/schemas/UUID' }
+        article_id: { $ref: '#/components/schemas/UUID' }
+        validated_by_prestataire_id: { $ref: '#/components/schemas/UUID' }
+      required: [session_id, article_id, validated_by_prestataire_id]
+    ValidationCreateDecor:
+      type: object
+      properties:
+        session_id: { $ref: '#/components/schemas/UUID' }
+        decor_id: { $ref: '#/components/schemas/UUID' }
+        validated_by_prestataire_id: { $ref: '#/components/schemas/UUID' }
+      required: [session_id, decor_id, validated_by_prestataire_id]
+    Workday:
+      type: object
+      properties:
+        jour: { type: string, format: date }
+        nb_sessions: { type: integer }
+      required: [jour, nb_sessions]
+
+security:
+  - bearerAuth: []
+
+paths:
+  /prestataires:
+    get:
+      tags: [Prestataires]
+      summary: Lister les prestataires
+      parameters:
+        - in: query
+          name: role
+          schema: { $ref: '#/components/schemas/PrestataireRole' }
+        - in: query
+          name: active
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Prestataire' }
+    post:
+      tags: [Prestataires]
+      summary: Créer un prestataire
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PrestataireCreate' }
+      responses:
+        '201':
+          description: Créé
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Prestataire' }
+
+  /prestataires/{id}:
+    get:
+      tags: [Prestataires]
+      summary: Obtenir un prestataire
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Prestataire' } } } }
+        '404': { description: Introuvable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    put:
+      tags: [Prestataires]
+      summary: Mettre à jour un prestataire
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PrestataireCreate' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Prestataire' } } } }
+    delete:
+      tags: [Prestataires]
+      summary: Supprimer un prestataire
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '204': { description: Supprimé }
+
+  /lieux:
+    get:
+      tags: [Lieux]
+      summary: Lister les lieux
+      parameters:
+        - in: query
+          name: type
+          schema: { $ref: '#/components/schemas/LieuType' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/Lieu' } }
+    post:
+      tags: [Lieux]
+      summary: Créer un lieu
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LieuCreate' } } }
+      responses:
+        '201': { description: Créé, content: { application/json: { schema: { $ref: '#/components/schemas/Lieu' } } } }
+
+  /lieux/{id}:
+    get:
+      tags: [Lieux]
+      summary: Obtenir un lieu
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Lieu' } } } }
+        '404': { description: Introuvable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    put:
+      tags: [Lieux]
+      summary: Mettre à jour un lieu
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/LieuCreate' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Lieu' } } } }
+    delete:
+      tags: [Lieux]
+      summary: Supprimer un lieu
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '204': { description: Supprimé }
+
+  /articles:
+    get:
+      tags: [Articles]
+      summary: Lister les articles
+      parameters:
+        - in: query
+          name: status
+          schema: { $ref: '#/components/schemas/ArticleStatus' }
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Article' } } } } }
+    post:
+      tags: [Articles]
+      summary: Créer un article
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ArticleCreate' } } }
+      responses:
+        '201': { description: Créé, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+
+  /articles/{id}:
+    get:
+      tags: [Articles]
+      summary: Obtenir un article
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+        '404': { description: Introuvable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    put:
+      tags: [Articles]
+      summary: Mettre à jour un article
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ArticleCreate' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+
+  /articles/{id}/status:
+    post:
+      tags: [Articles]
+      summary: Mettre à jour le statut d’un article (ok/abime/perdu)
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ArticleStatusUpdate' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Article' } } } }
+
+  /decors:
+    get:
+      tags: [Décors]
+      summary: Lister les décors
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Decor' } } } } }
+    post:
+      tags: [Décors]
+      summary: Créer un décor
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/DecorCreate' } } }
+      responses:
+        '201': { description: Créé, content: { application/json: { schema: { $ref: '#/components/schemas/Decor' } } } }
+
+  /decors/{id}:
+    get:
+      tags: [Décors]
+      summary: Obtenir un décor
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Decor' } } } }
+        '404': { description: Introuvable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    put:
+      tags: [Décors]
+      summary: Mettre à jour un décor
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/DecorCreate' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Decor' } } } }
+    delete:
+      tags: [Décors]
+      summary: Supprimer un décor
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '204': { description: Supprimé }
+
+  /decors/{id}/articles:
+    get:
+      tags: [Décors]
+      summary: Lister les articles d’un décor
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Article' }
+    post:
+      tags: [Décors]
+      summary: Ajouter des articles à un décor
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                article_ids:
+                  type: array
+                  items: { $ref: '#/components/schemas/UUID' }
+              required: [article_ids]
+      responses:
+        '204': { description: Ajouté }
+  /decors/{id}/articles/{articleId}:
+    delete:
+      tags: [Décors]
+      summary: Retirer un article d’un décor
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - name: articleId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/UUID' }
+      responses:
+        '204': { description: Supprimé }
+
+  /sessions:
+    get:
+      tags: [Sessions]
+      summary: Lister les sessions (vue calendrier)
+      parameters:
+        - $ref: '#/components/parameters/FromQuery'
+        - $ref: '#/components/parameters/ToQuery'
+        - in: query
+          name: type
+          schema: { $ref: '#/components/schemas/SessionType' }
+        - in: query
+          name: lieu_id
+          schema: { $ref: '#/components/schemas/UUID' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Session' } } } } }
+    post:
+      tags: [Sessions]
+      summary: Créer une session
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SessionCreate' } } }
+      responses:
+        '201': { description: Créé, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+
+  /sessions/{id}:
+    get:
+      tags: [Sessions]
+      summary: Obtenir une session
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+        '404': { description: Introuvable, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+    put:
+      tags: [Sessions]
+      summary: Mettre à jour une session
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SessionCreate' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Session' } } } }
+    delete:
+      tags: [Sessions]
+      summary: Supprimer une session
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '204': { description: Supprimé }
+
+  /sessions/{id}/prestataires:
+    get:
+      tags: [Sessions]
+      summary: Lister les prestataires affectés à la session
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200':
+          description: OK
+          content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Prestataire' } } } }
+    post:
+      tags: [Sessions]
+      summary: Affecter un prestataire à la session
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                prestataire_id: { $ref: '#/components/schemas/UUID' }
+                role_attribution: { $ref: '#/components/schemas/PrestataireRole' }
+              required: [prestataire_id, role_attribution]
+      responses:
+        '204': { description: Affecté }
+  /sessions/{id}/prestataires/{prestataireId}:
+    delete:
+      tags: [Sessions]
+      summary: Retirer un prestataire de la session
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - name: prestataireId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/UUID' }
+      responses:
+        '204': { description: Supprimé }
+
+  /sessions/{id}/articles:
+    get:
+      tags: [Sessions]
+      summary: Lister les articles ciblés (shoot_studio)
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Article' } } } } }
+    post:
+      tags: [Sessions]
+      summary: Ajouter des articles à une session
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                article_ids: { type: array, items: { $ref: '#/components/schemas/UUID' } }
+              required: [article_ids]
+      responses:
+        '204': { description: Ajouté }
+  /sessions/{id}/articles/{articleId}:
+    delete:
+      tags: [Sessions]
+      summary: Retirer un article d’une session
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - name: articleId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/UUID' }
+      responses:
+        '204': { description: Supprimé }
+
+  /sessions/{id}/decors:
+    get:
+      tags: [Sessions]
+      summary: Lister les décors ciblés (shoot_decor, prepa, depose)
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Decor' } } } } }
+    post:
+      tags: [Sessions]
+      summary: Ajouter des décors à une session
+      parameters: [ { $ref: '#/components/parameters/IdParam' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                decor_ids: { type: array, items: { $ref: '#/components/schemas/UUID' } }
+              required: [decor_ids]
+      responses:
+        '204': { description: Ajouté }
+  /sessions/{id}/decors/{decorId}:
+    delete:
+      tags: [Sessions]
+      summary: Retirer un décor d’une session
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - name: decorId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/UUID' }
+      responses:
+        '204': { description: Supprimé }
+
+  /validations/article-photo:
+    post:
+      tags: [Validations]
+      summary: Valider un article photographié en studio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ValidationCreateArticlePhoto' }
+      responses:
+        '201': { description: Créé, content: { application/json: { schema: { $ref: '#/components/schemas/Validation' } } } }
+
+  /validations/decor-photo:
+    post:
+      tags: [Validations]
+      summary: Valider un décor photographié
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ValidationCreateDecor' }
+      responses:
+        '201': { description: Créé, content: { application/json: { schema: { $ref: '#/components/schemas/Validation' } } } }
+
+  /validations/decor-install:
+    post:
+      tags: [Validations]
+      summary: Valider un décor installé
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ValidationCreateDecor' }
+      responses:
+        '201': { description: Créé, content: { application/json: { schema: { $ref: '#/components/schemas/Validation' } } } }
+
+  /validations/decor-uninstall:
+    post:
+      tags: [Validations]
+      summary: Valider un décor désinstallé
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ValidationCreateDecor' }
+      responses:
+        '201': { description: Créé, content: { application/json: { schema: { $ref: '#/components/schemas/Validation' } } } }
+
+  /history/workdays:
+    get:
+      tags: [Historiques]
+      summary: Jours de travail (global)
+      parameters:
+        - $ref: '#/components/parameters/FromQuery'
+        - $ref: '#/components/parameters/ToQuery'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Workday' }
+
+  /prestataires/{id}/history/workdays:
+    get:
+      tags: [Historiques]
+      summary: Jours de travail par prestataire
+      parameters:
+        - $ref: '#/components/parameters/IdParam'
+        - $ref: '#/components/parameters/FromQuery'
+        - $ref: '#/components/parameters/ToQuery'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Workday' }
